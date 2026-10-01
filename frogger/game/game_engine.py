@@ -21,6 +21,8 @@ from game.renderer import (
 
 LANE_SPEEDS = [1.5, -2, 2, -2.5, 1.5, -2]   # one entry per road row, alternating direction
 
+TIME_LIMIT_MS = 30_000
+
 
 class GameEngine:
     def __init__(self):
@@ -28,6 +30,8 @@ class GameEngine:
         self.game_over = False
         self.score = 0
         self.won = False
+        self.attempt_start_time = pygame.time.get_ticks()
+        self.remaining_time_ms = TIME_LIMIT_MS
         self._build_entities()
 
     def _build_entities(self):
@@ -66,6 +70,11 @@ class GameEngine:
                 self.vehicles.append(Vehicle(x=x, row=row, width=vehicle_width,
                                               height=CELL_SIZE - 8, speed=speed))
 
+    def _start_new_attempt(self):
+        self.frog.reset()
+        self.attempt_start_time = pygame.time.get_ticks()
+        self.remaining_time_ms = TIME_LIMIT_MS
+
     def handle_keydown(self, key):
         if key == pygame.K_UP:
             self.frog.move(0, -1)
@@ -80,6 +89,8 @@ class GameEngine:
             self.game_over = False
             self.score = 0
             self.won = False
+            self.attempt_start_time = pygame.time.get_ticks()
+            self.remaining_time_ms = TIME_LIMIT_MS
             self._build_entities()
 
     def update(self):
@@ -89,17 +100,35 @@ class GameEngine:
         for v in self.vehicles:
             v.update(road_width_px=WIDTH)
 
+        # Check for vehicle collision.
         if check_collision(self.frog, self.vehicles):
             self.lives -= 1
 
             if self.lives > 0:
-                self.frog.reset()
+                self._start_new_attempt()
             else:
                 self.game_over = True
 
+            return
+
+        # Check the remaining time for the current attempt.
+        elapsed = pygame.time.get_ticks() - self.attempt_start_time
+        self.remaining_time_ms = max(0, TIME_LIMIT_MS - elapsed)
+
+        # Reaching the goal always wins before the timer can cause a failure.
         if self.frog.row == GOAL_ROW:
             self.score += 1
             self.won = True
+            return
+
+        # If the timer reaches zero, the attempt fails and costs one life.
+        if self.remaining_time_ms <= 0:
+            self.lives -= 1
+
+            if self.lives > 0:
+                self._start_new_attempt()
+            else:
+                self.game_over = True
 
     def draw(self, surface, font):
         from game import renderer
@@ -118,6 +147,15 @@ class GameEngine:
             font,
             f"Score: {self.score}",
             (10, 34),
+        )
+
+        remaining_seconds = (self.remaining_time_ms + 999) // 1000
+
+        renderer.draw_text(
+            surface,
+            font,
+            f"Time: {remaining_seconds}",
+            (10, 58),
         )
 
         renderer.draw_text(
