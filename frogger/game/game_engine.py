@@ -24,6 +24,8 @@ LANE_SPEEDS = [1.5, -2, 2, -2.5, 1.5, -2]   # one entry per road row, alternatin
 
 class GameEngine:
     def __init__(self):
+        self.lives = 3
+        self.game_over = False
         self._build_entities()
 
     def _build_entities(self):
@@ -72,19 +74,50 @@ class GameEngine:
         elif key == pygame.K_RIGHT:
             self.frog.move(1, 0)
         elif key == pygame.K_r:
+            self.lives = 3
+            self.game_over = False
             self._build_entities()
 
     def update(self):
+        if self.game_over:
+            return
+
         for v in self.vehicles:
             v.update(road_width_px=WIDTH)
 
         if check_collision(self.frog, self.vehicles):
-            self.frog.reset()
+            self.lives -= 1
+
+            if self.lives > 0:
+                self.frog.reset()
+            else:
+                self.game_over = True
 
         if self.frog.row == GOAL_ROW:
             self.frog.reset()
 
     def draw(self, surface, font):
         from game import renderer
+
         renderer.draw_scene(surface, self.frog, self.vehicles)
-        renderer.draw_text(surface, font, "Arrow keys to move. R to restart.", (10, HEIGHT - 24))
+
+        renderer.draw_text(
+            surface,
+            font,
+            f"Lives: {self.lives}",
+            (10, 10),
+        )
+
+        renderer.draw_text(
+            surface,
+            font,
+            "Arrow keys to move. R to restart.",
+            (10, HEIGHT - 24),
+        )
+
+        if self.game_over:
+            renderer.draw_banner(
+                surface,
+                font,
+                "Game Over - Press R to restart",
+            )
