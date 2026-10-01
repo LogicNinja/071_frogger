@@ -26,6 +26,8 @@ class GameEngine:
     def __init__(self):
         self.lives = 3
         self.game_over = False
+        self.score = 0
+        self.won = False
         self._build_entities()
 
     def _build_entities(self):
@@ -76,10 +78,12 @@ class GameEngine:
         elif key == pygame.K_r:
             self.lives = 3
             self.game_over = False
+            self.score = 0
+            self.won = False
             self._build_entities()
 
     def update(self):
-        if self.game_over:
+        if self.game_over or self.won:
             return
 
         for v in self.vehicles:
@@ -94,7 +98,8 @@ class GameEngine:
                 self.game_over = True
 
         if self.frog.row == GOAL_ROW:
-            self.frog.reset()
+            self.score += 1
+            self.won = True
 
     def draw(self, surface, font):
         from game import renderer
@@ -111,6 +116,13 @@ class GameEngine:
         renderer.draw_text(
             surface,
             font,
+            f"Score: {self.score}",
+            (10, 34),
+        )
+
+        renderer.draw_text(
+            surface,
+            font,
             "Arrow keys to move. R to restart.",
             (10, HEIGHT - 24),
         )
@@ -120,4 +132,10 @@ class GameEngine:
                 surface,
                 font,
                 "Game Over - Press R to restart",
+            )
+        elif self.won:
+            renderer.draw_banner(
+                surface,
+                font,
+                "You Won! - Press R to restart",
             )
